@@ -103,7 +103,7 @@ class Core(Tox):
 		if not self.conference_peer_number_is_ours(group_id, peer_id):
 			irc_channel = self.irc.get_bridged_irc_channel(group_name)
 			if irc_channel != "":
-				self.irc.send_message(irc_channel, message)
+				self.irc.send_message(irc_channel, log_message)
 
 			response = Command.parse_channel(self, message, group_name)
 			if response != "":
