@@ -7,7 +7,7 @@ Channel commands:\n\
 CHANNEL_HELP_MESSAGE = "available channel commands: %s"
 UNKNOWN_COMMAND_MESSAGE = "unknown command - type help for a list of commands"
 
-COMMANDS = ["help", "id", "list", "join", "log", "create <channel_name> [topic]", "create_audio <channel_name> [topic]"]
+COMMANDS = ["help", "id", "list", "join", "log", "autoinvite [channel_name]", "create <channel_name> [topic]", "create_audio <channel_name> [topic]"]
 IRC_COMMANDS = ["help", "id", "list", "log"]
 CHANNEL_COMMANDS = ["!help", "!id", "!info", "!users"]
 
@@ -42,6 +42,21 @@ class Command(object):
 			# TODO: notify when channel doesn't exist
 			response = Command.get_log_response(core, message)
 
+		elif message.startswith("autoinvite"):
+			split_array = message.split(" ")
+			num_args = len(split_array)
+			user_id = core.friend_get_public_key(friend_id)
+
+			if num_args >= 2:
+				channel_name = split_array[1]
+				is_invited = core.db.toggle_autoinvite(user_id, channel_name)
+				if is_invited:
+					response = u"you will be automatically invited to %s channel" % channel_name.decode("utf-8")
+				else:
+					response = u"you will no longer be automatically invited to %s channel" % channel_name.decode("utf-8")
+			else:
+				response = Command.get_autoinvite_list_response(core, user_id)
+
 		elif message.startswith("create ") or message.startswith("create_audio "):
 			split_array = message.split(" ")
 			num_arguments = len(split_array)
@@ -69,7 +84,7 @@ class Command(object):
 					group = core.conference_new()
 					core.conference_set_title(group, channel_name)
 
-					response = "channel %s created" % channel_name
+					response = u"channel %s created" % channel_name.decode("utf-8")
 				else:
 					response = error
 			else:
@@ -178,11 +193,16 @@ class Command(object):
 			if channel["is_audio"]:
 				type = u"🎧"
 
+			group_id = core.get_group_by_name(channel["name"].encode("utf-8"))
+			num_peers = 0
+			if group_id != -1:
+				num_peers = core.conference_peer_count(group_id)
+
 			topic = channel["topic"]
 			if topic and topic != "":
 				topic = u"\"%s\"" % topic
 
-			response += u"%s %s   %s   \n" % (type, channel["name"], topic)
+			response += u"%s %s  (%d)   %s\n" % (type, channel["name"], num_peers, topic)
 
 		return response
 
@@ -227,3 +247,16 @@ class Command(object):
 
 		commands_string = commands_string.rstrip(" ")
 		return CHANNEL_HELP_MESSAGE % commands_string
+
+	@staticmethod
+	def get_autoinvite_list_response(core, user_name, db=False):
+		if not db:
+			db = core.db
+
+		response = ""
+		rows = db.get_autoinvite_list(user_name)
+
+		for row in rows:
+			response += row[0] + "\n"
+
+		return response

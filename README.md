@@ -9,6 +9,7 @@ Improved group bot for Tox messenger.
 - ability to see a list of users from the bridged channel (!users)
 - smart splitting of IRC messages
 - reconnection to Tox and IRC after losing connection
+- autoinvite
 
 Coming soon:
 - config

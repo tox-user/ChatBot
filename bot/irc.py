@@ -223,14 +223,14 @@ class IRC(threading.Thread):
 
 	def get_bridged_tox_channel(self, irc_channel):
 		for channel in self.channels:
-			if channel["irc"] == irc_channel:
+			if channel["irc"] == irc_channel.decode("utf-8"):
 				return channel["tox"]
 
 		return ""
 
 	def get_bridged_irc_channel(self, group_name):
 		for channel in self.channels:
-			if channel["tox"] == group_name:
+			if channel["tox"] == group_name.decode("utf-8"):
 				return channel["irc"]
 
 		return ""

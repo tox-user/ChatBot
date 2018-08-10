@@ -80,7 +80,7 @@ class Core(Tox):
 
 		for channel in self.channels:
 			index = self.conference_new()
-			self.conference_set_title(index, channel["name"])
+			self.conference_set_title(index, channel["name"].encode("utf-8"))
 
 	def on_friend_request(self, pk, message):
 		self.friend_add_norequest(pk)
@@ -92,13 +92,21 @@ class Core(Tox):
 		pass
 
 	def on_friend_connection_status(self, friend_id, status):
-		pass
+		# TODO: autoinvite also when peer leaves group
+		# autoinvite
+		if status:
+			user_id = self.friend_get_public_key(friend_id)
+			rows = self.db.get_autoinvite_list(user_id)
+			for row in rows:
+				group = self.get_group_by_name(row[0].encode("utf-8"))
+				if group != -1:
+					self.conference_invite(friend_id, group)
 
 	def on_conference_message(self, group_id, peer_id, type, message):
 		author_name = "[%s]: " % self.conference_peer_get_name(group_id, peer_id)
 		log_message = author_name + message
 		group_name = self.conference_get_title(group_id)
-		self.db.log_message(group_name, log_message.decode("utf-8"))
+		self.db.log_message(group_name, log_message)
 
 		if not self.conference_peer_number_is_ours(group_id, peer_id):
 			irc_channel = self.irc.get_bridged_irc_channel(group_name)

@@ -11,7 +11,7 @@ class DB():
 		self.cursor.execute('CREATE TABLE IF NOT EXISTS logs(id INTEGER PRIMARY KEY, message TEXT NOT NULL, date DATETIME DEFAULT CURRENT_TIMESTAMP, channel_id TEXT NOT NULL)')
 		self.cursor.execute('CREATE TABLE IF NOT EXISTS admins(id INTEGER PRIMARY KEY, user_id TEXT NOT NULL, channel_id TEXT NOT NULL)')
 		self.cursor.execute('CREATE TABLE IF NOT EXISTS irc_channels(id INTEGER PRIMARY KEY, channel_id TEXT NOT NULL, irc_network TEXT NOT NULL, irc_channel TEXT NOT NULL)')
-		#self.cursor.execute('CREATE TABLE IF NOT EXISTS autoinvite_list(id INTEGER PRIMARY KEY NOT NULL, user_id TEXT NOT NULL, channel_id TEXT NOT NULL)')
+		self.cursor.execute('CREATE TABLE IF NOT EXISTS autoinvite_list(id INTEGER PRIMARY KEY, user_id TEXT NOT NULL, channel_id TEXT NOT NULL)')
 
 		self.db.commit()
 
@@ -49,10 +49,14 @@ class DB():
 		return ""
 
 	def log_message(self, group_name, message):
+		group_name = group_name.decode("utf-8")
+		message = message.decode("utf-8")
+
 		self.cursor.execute("INSERT INTO logs (message, channel_id) VALUES (?, ?)", (message, group_name,))
 		self.db.commit()
 
 	def get_log(self, group_name):
+		group_name = group_name.decode("utf-8")
 		return self.cursor.execute("SELECT message FROM logs WHERE channel_id = ? LIMIT 500", (group_name,))
 
 	def close(self):
@@ -64,3 +68,25 @@ class DB():
 	def get_irc_channels(self):
 		# TODO: sort audio channels at the bottom
 		return self.cursor.execute("SELECT channel_id, irc_network, irc_channel FROM irc_channels")
+
+	def toggle_autoinvite(self, user_id, channel_id):
+		user_id = user_id.decode("utf-8")
+		channel_id = channel_id.decode("utf-8")
+
+		self.cursor.execute("SELECT * FROM autoinvite_list WHERE user_id = ? AND channel_id = ?", (user_id, channel_id,))
+		rows = self.cursor.fetchall()
+
+		is_invited = False
+		if not rows or len(rows) <= 0:
+			self.cursor.execute("INSERT INTO autoinvite_list (user_id, channel_id) VALUES (?, ?)", (user_id, channel_id,))
+			is_invited = True
+		else:
+			self.cursor.execute("DELETE FROM autoinvite_list WHERE user_id = ? AND channel_id = ?", (user_id, channel_id,))
+
+		self.db.commit()
+		return is_invited
+
+	def get_autoinvite_list(self, user_id):
+		user_id = user_id.decode("utf-8")
+		return self.cursor.execute("SELECT channel_id FROM autoinvite_list WHERE user_id = ? LIMIT 200", (user_id,))
+
