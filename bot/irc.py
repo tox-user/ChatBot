@@ -1,8 +1,8 @@
 import socket
 import threading
 from time import sleep
-from db import DB
-from command import Command
+from persistence.db import DB
+from bot.command import Command
 
 # message type codes
 NAMES_MESSAGE = 353
@@ -110,7 +110,7 @@ class IRC(threading.Thread):
 		self.sock.settimeout(180)
 
 	def run(self):
-		#TODO: detect disconnects, notify users and reconnect
+		#TODO: detect disconnects (notify users?) and reconnect
 		self.db = DB()
 		self.create_socket()
 		self.load_channels()
@@ -161,7 +161,7 @@ class IRC(threading.Thread):
 					if target == self.nickname:
 						is_priv_message = True
 					else:
-						tox_channel = self.get_connected_tox_channel(target)
+						tox_channel = self.get_bridged_tox_channel(target)
 						formatted_message = "[%s]: %s" % (sender_username, message_text)
 						is_message_sent = self.core.send_group_message(tox_channel, formatted_message)
 
@@ -207,7 +207,7 @@ class IRC(threading.Thread):
 							channel = cur_channel
 							break
 
-					tox_channel = self.get_connected_tox_channel(target)
+					tox_channel = self.get_bridged_tox_channel(target)
 					num_users = len(channel["irc_users"])
 					formatted_message = "%d users in %s IRC channel: " % (num_users, target)
 
@@ -221,14 +221,14 @@ class IRC(threading.Thread):
 					self.core.send_group_message(tox_channel, formatted_message)
 					channel["irc_users"] = []
 
-	def get_connected_tox_channel(self, irc_channel):
+	def get_bridged_tox_channel(self, irc_channel):
 		for channel in self.channels:
 			if channel["irc"] == irc_channel:
 				return channel["tox"]
 
 		return ""
 
-	def get_connected_irc_channel(self, group_name):
+	def get_bridged_irc_channel(self, group_name):
 		for channel in self.channels:
 			if channel["tox"] == group_name:
 				return channel["irc"]

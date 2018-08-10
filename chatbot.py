@@ -1,8 +1,8 @@
 #!/usr/bin/python
 
 from os.path import exists
-from core import Core
-from toxoptions import ToxOptions
+from core.core import Core
+from core.toxoptions import ToxOptions
 
 options = ToxOptions()
 

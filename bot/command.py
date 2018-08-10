@@ -91,7 +91,7 @@ class Command(object):
 			response = Command.get_id_response(core)
 		
 		elif message.startswith("!info"):
-			irc_channel = core.irc.get_connected_irc_channel(group_name)
+			irc_channel = core.irc.get_bridged_irc_channel(group_name)
 
 			if irc_channel != "":
 				response = "this channel is currently connected to %s IRC channel" % irc_channel
@@ -99,7 +99,7 @@ class Command(object):
 				response = "this channel is not connected to IRC"
 
 		elif message.startswith("!users"):
-			irc_channel = core.irc.get_connected_irc_channel(group_name)
+			irc_channel = core.irc.get_bridged_irc_channel(group_name)
 
 			if irc_channel != "":
 				core.irc.get_channel_users(irc_channel)
@@ -142,11 +142,11 @@ class Command(object):
 			response = Command.get_id_response(irc.core)
 
 		elif message_text.startswith("!info"):
-			tox_channel = irc.get_connected_tox_channel(target)
+			tox_channel = irc.get_bridged_tox_channel(target)
 			response = "this channel is currently connected to %s Tox channel on ChatBot" % tox_channel
 
 		elif message_text.startswith("!users"):
-			tox_channel = irc.get_connected_tox_channel(target)
+			tox_channel = irc.get_bridged_tox_channel(target)
 			users = irc.core.get_group_peers(tox_channel)
 			num_users = len(users)
 

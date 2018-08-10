@@ -1,8 +1,8 @@
 from pytox import Tox
 from time import sleep
-from db import DB
-from command import Command
-from irc import IRC
+from persistence.db import DB
+from bot.command import Command
+from bot.irc import IRC
 
 MAX_GROUP_MESSAGE_LEN = 1024
 SERVER = [
@@ -11,6 +11,8 @@ SERVER = [
 	"461FA3776EF0FA655F1A05477DF1B3B614F7D6B124F7DB1DD4FE3C08B03B640F"
 ]
 
+# TODO: use all bootstrap nodes
+# TODO: prevent group name changes
 class Core(Tox):
 	def __init__(self, options=None):
 		if options is not None:
@@ -99,7 +101,7 @@ class Core(Tox):
 		self.db.log_message(group_name, log_message.decode("utf-8"))
 
 		if not self.conference_peer_number_is_ours(group_id, peer_id):
-			irc_channel = self.irc.get_connected_irc_channel(group_name)
+			irc_channel = self.irc.get_bridged_irc_channel(group_name)
 			if irc_channel != "":
 				self.irc.send_message(irc_channel, message)
 
