@@ -21,6 +21,10 @@ class DB():
 		self.create_channel("public-audio-chat", "audio testing and general talks", 1)
 
 	def create_channel(self, name, topic, is_audio=0, admin_pk="", irc_network="", irc_channel=""):
+		name = name.decode("utf-8")
+		topic = topic.decode("utf-8")
+		irc_channel = irc_channel.decode("utf-8")
+
 		self.cursor.execute("SELECT id FROM channels WHERE id = ?", (name,))
 		rows = self.cursor.fetchall()
 
