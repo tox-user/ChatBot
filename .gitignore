@@ -3,3 +3,4 @@
 *.so
 *.db
 *.tox
+config.json

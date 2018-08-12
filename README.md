@@ -8,13 +8,14 @@ Improved group bot for Tox messenger.
 - channel commands on Tox and IRC
 - ability to see a list of users from the bridged channel (!users)
 - smart splitting of IRC messages
-- reconnection to Tox and IRC after losing connection
 - autoinvite
 
 Coming soon:
-- config
 - audio channels
 - muting peers by admins
+
+## Config
+ChatBot's configuration file `config.json` is created on first run in ChatBot's main directory.
 
 ## Dependencies
 [py-toxcore-c](https://github.com/TokTok/py-toxcore-c)

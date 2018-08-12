@@ -1,0 +1,46 @@
+{
+	"tox_user_name": "ChatBot",
+	"tox_status_message": "",
+	"irc_user_name": "ChatBot",
+
+	"database_file_name": "chatbot.db",
+	"profile_file_name": "chatbot.tox",
+	"use_udp": true,
+	"use_lan_discovery": "true",
+
+	"enable_irc_sync_feature": true,
+	"use_freenode_nickserv": false,
+	"freenode_nickserv_password": "",
+
+	"channels":
+	[
+		{
+			"name": "tox-public",
+			"topic": "general Tox chat",
+			"is_audio_channel": false,
+			"admin_public_key": "",
+			"irc_network": "chat.freenode.net",
+			"irc_channel": "#tox"
+		},
+		{
+			"name": "toktok",
+			"topic": "toxcore development channel",
+			"is_audio_channel": false,
+			"admin_public_key": "",
+			"irc_network": "chat.freenode.net",
+			"irc_channel": "#toktok"
+		},
+		{
+			"name": "offtopic",
+			"topic": "everything unrelated to Tox",
+			"is_audio_channel": false,
+			"admin_public_key": ""
+		},
+		{
+			"name": "public-audio-chat",
+			"topic": "audio testing and general talks",
+			"is_audio_channel": true,
+			"admin_public_key": ""
+		}
+	]
+}

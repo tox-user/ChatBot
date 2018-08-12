@@ -2,11 +2,15 @@ import socket
 import threading
 from time import sleep
 from persistence.db import DB
+from persistence.config import Config
 from bot.command import Command
 
 # message type codes
 NAMES_MESSAGE = 353
 END_OF_NAMES = 366
+MOTD_START = 375
+MOTD = 372
+MOTD_END = 376
 
 MAX_MESSAGE_LEN = 450
 
@@ -16,21 +20,22 @@ class IRC(threading.Thread):
 		self.core = tox
 		# TODO: replace with server for each channel
 		self.server = "chat.freenode.net"
-		# TODO: have some backup names
-		self.nickname = "ChatBot"
+		self.nickname = self.core.config["irc_user_name"]
 		self.quitting = False
 
 	def connect(self):
 		try:
 			# TODO: use ssl
 			self.sock.connect((self.server, 6667))
-			# TODO: register the user name on first join and log in with it
-			# /msg NickServ REGISTER password email
-			# /msg NickServ IDENTIFY nickname password
+			# TODO: detect if name is taken
 			user_string = u"USER %s %s %s %s \n" % (self.nickname, self.nickname, self.nickname, self.nickname)
 			nick_string = u"NICK %s \n" % self.nickname
 			self.sock.send(user_string.encode("utf-8"))
 			self.sock.send(nick_string.encode("utf-8"))
+
+			if self.core.config["use_freenode_nickserv"]:
+				identify_string = "PRIVMSG NickServ :IDENTIFY %s %s \n" % (self.nickname, self.core.config["freenode_nickserv_password"])
+				self.sock.send(identify_string.encode("utf-8"))
 		except socket.timeout:
 			print("ERROR: IRC connection timed out")
 		except socket.error, error:
@@ -143,7 +148,6 @@ class IRC(threading.Thread):
 		messages = received_message.split("\r\n")
 
 		for message in messages:
-			print(message)
 			split_array = message.split(" ")
 
 			if message.startswith("PING"):
@@ -220,6 +224,12 @@ class IRC(threading.Thread):
 
 					self.core.send_group_message(tox_channel, formatted_message)
 					channel["irc_users"] = []
+
+				# TODO: don't print MOTD message
+				#elif message_type == str(MOTD_START) or message_type == str(MOTD) or message_type == str(MOTD_END):
+					#return
+
+				print(message)
 
 	def get_bridged_tox_channel(self, irc_channel):
 		for channel in self.channels:

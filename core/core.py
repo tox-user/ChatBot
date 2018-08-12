@@ -1,6 +1,7 @@
 from pytox import Tox
 from time import sleep
 from persistence.db import DB
+from persistence.config import Config
 from bot.command import Command
 from bot.irc import IRC
 
@@ -18,17 +19,21 @@ class Core(Tox):
 		if options is not None:
 			super(Core, self).__init__(options)
 
+		self.config = Config().config
 		self.db = DB()
 		self.db.init_data()
 		self.options = options
-		self.self_set_name("ChatBot")
+
+		self.self_set_name(self.config["tox_user_name"])
+		self.self_set_status_message(self.config["tox_status_message"])
 		print("Tox ID: %s" % self.self_get_address())
 
 		self.connect()
 
-		self.irc = IRC(self)
-		self.irc.daemon = True
-		self.irc.start()
+		if self.config["enable_irc_sync_feature"]:
+			self.irc = IRC(self)
+			self.irc.daemon = True
+			self.irc.start()
 
 	def connect(self):
 		print("connecting to DHT...")
@@ -68,7 +73,8 @@ class Core(Tox):
 
 		except KeyboardInterrupt:
 			print("interrupted by user, exiting")
-			self.irc.quit()
+			if self.config["enable_irc_sync_feature"]:
+				self.irc.quit()
 			self.db.close()
 			self.options.save_profile(self)
 			exit()
@@ -108,7 +114,8 @@ class Core(Tox):
 		group_name = self.conference_get_title(group_id)
 		self.db.log_message(group_name, log_message)
 
-		if not self.conference_peer_number_is_ours(group_id, peer_id):
+		is_message_from_chatbot = self.conference_peer_number_is_ours(group_id, peer_id)
+		if self.config["enable_irc_sync_feature"] and not is_message_from_chatbot:
 			irc_channel = self.irc.get_bridged_irc_channel(group_name)
 			if irc_channel != "":
 				self.irc.send_message(irc_channel, log_message)

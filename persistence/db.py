@@ -1,8 +1,10 @@
 import sqlite3
+from config import Config
 
 class DB():
 	def __init__(self):
-		self.db_name = "chatbot.db"
+		self.config = Config().config
+		self.db_name = self.config["database_file_name"]
 		self.db = sqlite3.connect(self.db_name)
 		self.cursor = self.db.cursor()
 
@@ -15,10 +17,32 @@ class DB():
 
 		self.db.commit()
 
-		self.create_channel("tox-public", "general Tox chat", 0, "", "chat.freenode.net", "#tox")
-		self.create_channel("toktok", "toxcore development channel", 0, "", "chat.freenode.net", "#toktok")
-		self.create_channel("offtopic", "everything unrelated to Tox")
-		self.create_channel("public-audio-chat", "audio testing and general talks", 1)
+		for channel in self.config["channels"]:
+			name = channel["name"]
+			is_audio = channel["is_audio_channel"]
+			topic = ""
+			admin = ""
+			irc_network = None
+			irc_channel = None
+
+			if "topic" in channel.keys():
+				topic = channel["topic"]
+			if "irc_network" in channel.keys():
+				irc_network = channel["irc_network"]
+			if "irc_channel" in channel.keys():
+				irc_channel = channel["irc_channel"]
+			if "admin_public_key" in channel.keys():
+				admin = channel["admin_public_key"]
+
+			if is_audio:
+				is_audio = 1
+			else:
+				is_audio = 0
+
+			if irc_network and irc_channel:
+				self.create_channel(name, topic, is_audio, admin, irc_network, irc_channel)
+			else:
+				self.create_channel(name, topic, is_audio, admin)
 
 	def create_channel(self, name, topic, is_audio=0, admin_pk="", irc_network="", irc_channel=""):
 		name = name.decode("utf-8")
