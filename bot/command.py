@@ -5,10 +5,12 @@ HELP_MESSAGE = "Commands:\n\
 Channel commands:\n\
 %s"
 CHANNEL_HELP_MESSAGE = "available channel commands: %s"
-UNKNOWN_COMMAND_MESSAGE = "unknown command - type help for a list of commands"
+UNKNOWN_COMMAND_ERROR = "error: unknown command - type help for a list of commands"
+MISSING_CHANNEL_NAME_ERROR = "error: you need to provide a channel name"
+CHANNEL_DOESNT_EXIST_ERROR = "error: specified channel doesn't exist"
 
-COMMANDS = ["help", "id", "list", "join", "log", "autoinvite [channel_name]", "create <channel_name> [topic]", "create_audio <channel_name> [topic]"]
-IRC_COMMANDS = ["help", "id", "list", "log"]
+COMMANDS = ["help", "id", "list", "join <channel_name>", "log <channel_name>", "autoinvite [channel_name]", "create <channel_name> [topic]", "create_audio <channel_name> [topic]"]
+IRC_COMMANDS = ["help", "id", "list", "log <channel_name>"]
 CHANNEL_COMMANDS = ["!help", "!id", "!info", "!users"]
 
 class Command(object):
@@ -27,19 +29,26 @@ class Command(object):
 		elif message.startswith("list"):
 			response = Command.get_list_response(core)
 
-		elif message.startswith("join ") or message.startswith("invite "):
-			# TODO: notify when channel doesn't exist
+		elif message.startswith("join") or message.startswith("invite"):
 			split_array = message.split(" ")
-			channel_name = split_array[1]
+			if len(split_array) >= 2:
+				channel_name = split_array[1]
+				is_group_found = False
 
-			for group in core.conference_get_chatlist():
-				group_name = core.conference_get_title(group)
-				if group_name == channel_name:
-					core.conference_invite(friend_id, group)
-					break
+				for group in core.conference_get_chatlist():
+					group_name = core.conference_get_title(group)
+					if group_name == channel_name:
+						core.conference_invite(friend_id, group)
+						is_group_found = True
+						break
 
-		elif message.startswith("log "):
-			# TODO: notify when channel doesn't exist
+				if not is_group_found:
+					response = CHANNEL_DOESNT_EXIST_ERROR
+
+			else:
+				response = MISSING_CHANNEL_NAME_ERROR
+
+		elif message.startswith("log"):
 			response = Command.get_log_response(core, message)
 
 		elif message.startswith("autoinvite"):
@@ -57,14 +66,16 @@ class Command(object):
 			else:
 				response = Command.get_autoinvite_list_response(core, user_id)
 
-		elif message.startswith("create ") or message.startswith("create_audio "):
+		elif message.startswith("create") or message.startswith("create_audio"):
 			split_array = message.split(" ")
 			num_arguments = len(split_array)
 			is_name_provided = False
 
 			if num_arguments >= 2:
 				channel_name = split_array[1]
-				is_name_provided = True
+
+				if channel_name != "" and channel_name != " ":
+					is_name_provided = True
 
 			topic = ""
 			if num_arguments >= 3:
@@ -72,11 +83,11 @@ class Command(object):
 					if i >= 2:
 						topic += split_array[i] + " "
 
-				topic.rstrip(" ")
+			topic = topic.rstrip(" ")
 
 			if is_name_provided:
 				is_audio = 0
-				if message.startswith("create_audio "):
+				if message.startswith("create_audio"):
 					is_audio = 1
 
 				error = core.db.create_channel(channel_name, topic, is_audio, core.friend_get_public_key(friend_id))
@@ -87,11 +98,12 @@ class Command(object):
 					response = u"channel %s created" % channel_name.decode("utf-8")
 				else:
 					response = error
+
 			else:
-				response = "error: channel name was not provided"
+				response = MISSING_CHANNEL_NAME_ERROR
 
 		else:
-			response = UNKNOWN_COMMAND_MESSAGE
+			response = UNKNOWN_COMMAND_ERROR
 
 
 		return response.encode("utf-8")
@@ -141,7 +153,7 @@ class Command(object):
 			response = Command.get_log_response(irc.core, message_text, irc.db)
 
 		else:
-			response = UNKNOWN_COMMAND_MESSAGE
+			response = UNKNOWN_COMMAND_ERROR
 
 
 		return response.encode("utf-8")
@@ -158,7 +170,7 @@ class Command(object):
 
 		elif message_text.startswith("!info"):
 			tox_channel = irc.get_bridged_tox_channel(target)
-			response = "this channel is currently connected to %s Tox channel on ChatBot" % tox_channel
+			response = "this channel is currently connected to %s Tox channel on %s" % (tox_channel, irc.core.self_get_name())
 
 		elif message_text.startswith("!users"):
 			tox_channel = irc.get_bridged_tox_channel(target)
@@ -220,6 +232,9 @@ class Command(object):
 
 			for row in rows:
 				response += row[0] + "\n"
+
+		else:
+			response = MISSING_CHANNEL_NAME_ERROR
 
 		return response
 

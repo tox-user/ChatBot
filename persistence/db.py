@@ -1,6 +1,8 @@
 import sqlite3
 from config import Config
 
+CHANNEL_ALREADY_EXISTS_ERROR = "error: channel already exists"
+
 class DB():
 	def __init__(self):
 		self.config = Config().config
@@ -55,7 +57,7 @@ class DB():
 		if not rows or len(rows) <= 0:
 			self.cursor.execute("INSERT INTO channels (id, topic, is_audio) VALUES (?, ?, ?)", (name, topic, is_audio,))
 		else:
-			return "ERROR: channel already exists"
+			return CHANNEL_ALREADY_EXISTS_ERROR
 
 		if admin_pk != "":
 			self.cursor.execute("SELECT id FROM admins WHERE user_id = ? AND channel_id = ?", (admin_pk, name,))
@@ -87,7 +89,7 @@ class DB():
 		self.db.close()
 
 	def get_channels(self):
-		return self.cursor.execute("SELECT id, topic, is_audio FROM channels")
+		return self.cursor.execute("SELECT id, topic, is_audio FROM channels ORDER BY is_audio ASC")
 
 	def get_irc_channels(self):
 		# TODO: sort audio channels at the bottom
