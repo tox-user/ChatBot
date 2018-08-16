@@ -19,21 +19,14 @@ class Core(Tox):
 		if options is not None:
 			super(Core, self).__init__(options)
 
-		self.config = Config().config
-		self.db = DB()
-		self.db.init_data()
+		self.load_config()
 		self.options = options
-
-		self.self_set_name(self.config["tox_user_name"])
-		self.self_set_status_message(self.config["tox_status_message"])
 		print("Tox ID: %s" % self.self_get_address())
 
 		self.connect()
 
 		if self.config["enable_irc_sync_feature"]:
-			self.irc = IRC(self)
-			self.irc.daemon = True
-			self.irc.start()
+			self.start_irc_client()
 
 	def connect(self):
 		print("connecting to DHT...")
@@ -41,7 +34,6 @@ class Core(Tox):
 
 	def on_connected(self):
 		print("connected to DHT")
-		self.channels = self.get_channels()
 		self.create_groups()
 	
 	def on_disconnected(self):
@@ -51,6 +43,12 @@ class Core(Tox):
 	def save_profile(self):
 		with open(self.profile, "wb") as f:
 			f.write(self.get_savedata())
+
+	def start_irc_client(self):
+		print("connecting to IRC...")
+		self.irc = IRC(self)
+		self.irc.daemon = True
+		self.irc.start()
 
 	def loop(self):
 		checked = False
@@ -200,21 +198,76 @@ class Core(Tox):
 
 		return True
 
-	def get_channels(self, db=False):
+	def get_channels(self, db=False, built_in_only=False):
 		if not db:
 			db = self.db
 
 		channels = []
-		rows = db.get_channels()
+		rows = db.get_channels(built_in_only)
 		for row in rows:
 			id = row[0]
 			topic = row[1]
 			is_audio = row[2]
+			is_built_in = row[3]
+
 			if is_audio == 1:
 				is_audio = True
 			else:
 				is_audio = False
 
-			channels.append({"name": id, "topic": topic, "is_audio": is_audio})
+			if is_built_in == 1:
+				is_built_in = True
+			else:
+				is_built_in = False
+
+			channels.append({"name": id, "topic": topic, "is_audio": is_audio, "is_built_in": is_built_in})
 
 		return channels
+
+	def load_config(self):
+		self.config = Config().config
+
+		# set Tox name and status
+		self.self_set_name(self.config["tox_user_name"])
+		self.self_set_status_message(self.config["tox_status_message"])
+
+		# init database, load channels
+		self.db = DB()
+		self.db.init_data()
+		self.channels = self.get_channels()
+
+		# update built-in channels
+		old_channel_names = []
+		new_channel_names = []
+
+		for channel in self.get_channels(False, True):
+			old_channel_names.append(channel["name"])
+
+		for channel in self.config["channels"]:
+			new_channel_names.append(channel["name"])
+
+		for channel_name in old_channel_names:
+			if channel_name not in new_channel_names:
+				print("deleting built-in channel %s" % channel_name)
+				self.db.delete_channel(channel_name)
+
+	def reload_config(self):
+		was_irc_enabled = self.config["enable_irc_sync_feature"]
+		self.load_config()
+
+		# create missing channels
+		for channel in self.channels:
+			if self.get_group_by_name(channel["name"]) == -1:
+				index = self.conference_new()
+				self.conference_set_title(index, channel["name"].encode("utf-8"))
+
+		print("config reloaded")
+
+		# update IRC sync
+		if self.config["enable_irc_sync_feature"] and not was_irc_enabled:
+			self.start_irc_client()
+		elif not self.config["enable_irc_sync_feature"] and was_irc_enabled:
+			print("quitting IRC...")
+			self.irc.quit()
+		elif self.config["enable_irc_sync_feature"] and was_irc_enabled:
+			self.irc.reload_config = True

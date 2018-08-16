@@ -16,8 +16,16 @@ class Config():
 				print("config.json configuration file created")
 		else:
 			with open(self.CONFIG_PATH, "r") as f:
-				self.config = json.load(f)
+				self.config = json.load(f, object_pairs_hook=OrderedDict)
 
-	def reload(self):
-		# TODO: reload config
-		pass
+			# add missing keys
+			keys = self.config.keys()
+			have_keys_changed = False
+			for def_key in self.DEFAULT_CONFIG.keys():
+				if def_key not in keys:
+					self.config[def_key] = self.DEFAULT_CONFIG[def_key]
+					have_keys_changed = True
+
+			if have_keys_changed:
+				with open(self.CONFIG_PATH, "w") as f:
+					json.dump(self.config, f, indent=4)

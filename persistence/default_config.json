@@ -1,4 +1,9 @@
 {
+	"bot_admins_public_keys":
+	[
+		""
+	],
+
 	"tox_user_name": "ChatBot",
 	"tox_status_message": "",
 	"irc_user_name": "ChatBot",

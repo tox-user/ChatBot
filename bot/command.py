@@ -3,13 +3,14 @@
 HELP_MESSAGE = "Commands:\n\
 %s\n\
 Channel commands:\n\
-%s"
+%s%s"
 CHANNEL_HELP_MESSAGE = "available channel commands: %s"
 UNKNOWN_COMMAND_ERROR = "error: unknown command - type help for a list of commands"
 MISSING_CHANNEL_NAME_ERROR = "error: you need to provide a channel name"
 CHANNEL_DOESNT_EXIST_ERROR = "error: specified channel doesn't exist"
 
-COMMANDS = ["help", "id", "list", "join <channel_name>", "log <channel_name>", "autoinvite [channel_name]", "create <channel_name> [topic]", "create_audio <channel_name> [topic]"]
+COMMANDS = ["help", "id", "list", "join <channel_name>", "log <channel_name>", "autoinvite [channel_name]", "create <channel_name> [topic]", "create_audio <channel_name> [topic], delete_channel <channel_name>"]
+BOT_ADMIN_COMMANDS = ["reload_config"]
 IRC_COMMANDS = ["help", "id", "list", "log <channel_name>"]
 CHANNEL_COMMANDS = ["!help", "!id", "!info", "!users"]
 
@@ -21,9 +22,9 @@ class Command(object):
 		response = ""
 
 		if message == "help":
-			response = Command.get_help_response()
+			response = Command.get_help_response(core.config, core.friend_get_public_key(friend_id))
 
-		elif message.startswith("id"):
+		elif message == "id":
 			response = Command.get_id_response(core)
 
 		elif message.startswith("list"):
@@ -102,6 +103,42 @@ class Command(object):
 			else:
 				response = MISSING_CHANNEL_NAME_ERROR
 
+		elif message.startswith("delete_channel"):
+			split_array = message.split(" ")
+			num_arguments = len(split_array)
+			is_name_provided = False
+
+			if num_arguments >= 2:
+				channel_name = split_array[1]
+
+				if channel_name != "" and channel_name != " ":
+					is_name_provided = True
+
+			if is_name_provided:
+				user_public_key = core.friend_get_public_key(friend_id)
+
+				if user_public_key in core.config["bot_admins_public_keys"] or core.db.is_channel_admin(user_public_key, channel_name):
+					core.db.delete_channel(channel_name)
+					group = core.get_group_by_name(channel_name)
+					if group != -1:
+						core.conference_delete(group)
+						response = "channel deleted"
+					else:
+						response = CHANNEL_DOESNT_EXIST_ERROR
+
+				else:
+					response = "you are not an admin of that channel"
+			else:
+				response = MISSING_CHANNEL_NAME_ERROR
+
+		elif message == "reload_config":
+			user_public_key = core.friend_get_public_key(friend_id)
+			if user_public_key in core.config["bot_admins_public_keys"]:
+				core.reload_config()
+				response = "config reloaded"
+			else:
+				response = UNKNOWN_COMMAND_ERROR
+
 		else:
 			response = UNKNOWN_COMMAND_ERROR
 
@@ -141,7 +178,7 @@ class Command(object):
 		response = ""
 
 		if message_text.startswith("help"):
-			response = Command.get_help_response(True)
+			response = Command.get_help_response(False, False, True)
 
 		elif message_text.startswith("id"):
 			response = Command.get_id_response(irc.core)
@@ -239,7 +276,18 @@ class Command(object):
 		return response
 
 	@staticmethod
-	def get_help_response(is_irc=False):
+	def get_help_response(config, user_public_key, is_irc=False):
+		admin_commands = ""
+		if not is_irc:
+			is_bot_admin = False
+			if user_public_key in config["bot_admins_public_keys"]:
+				is_bot_admin = True
+				admin_commands = "\nAdmin commands:\n"
+				for command in BOT_ADMIN_COMMANDS:
+					admin_commands += "%s\n" % command
+
+				admin_commands = admin_commands.rstrip("\n")
+
 		commands = COMMANDS
 		if is_irc:
 			commands = IRC_COMMANDS
@@ -252,7 +300,7 @@ class Command(object):
 		for command in CHANNEL_COMMANDS:
 			channel_commands_string += "%s\n" % command
 
-		return HELP_MESSAGE % (commands_string, channel_commands_string)
+		return HELP_MESSAGE % (commands_string, channel_commands_string, admin_commands)
 	
 	@staticmethod
 	def get_channel_help_response():

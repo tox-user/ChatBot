@@ -22,6 +22,7 @@ class IRC(threading.Thread):
 		self.server = "chat.freenode.net"
 		self.nickname = self.core.config["irc_user_name"]
 		self.quitting = False
+		self.reload_config = False
 
 	def connect(self):
 		try:
@@ -29,17 +30,22 @@ class IRC(threading.Thread):
 			self.sock.connect((self.server, 6667))
 			# TODO: detect if name is taken
 			user_string = u"USER %s %s %s %s \n" % (self.nickname, self.nickname, self.nickname, self.nickname)
-			nick_string = u"NICK %s \n" % self.nickname
 			self.sock.send(user_string.encode("utf-8"))
-			self.sock.send(nick_string.encode("utf-8"))
+			self.set_nickname(self.nickname)
 
 			if self.core.config["use_freenode_nickserv"]:
 				identify_string = "PRIVMSG NickServ :IDENTIFY %s %s \n" % (self.nickname, self.core.config["freenode_nickserv_password"])
 				self.sock.send(identify_string.encode("utf-8"))
+
 		except socket.timeout:
 			print("ERROR: IRC connection timed out")
 		except socket.error, error:
 			print("ERROR: IRC socket error: %s" % error)
+
+	def set_nickname(self, nickname):
+		self.nickname = nickname
+		nick_string = u"NICK %s \n" % self.nickname
+		self.sock.send(nick_string.encode("utf-8"))
 
 	def join_channel(self, channel):
 		# TODO: notify when kicked or banned from channel
@@ -47,9 +53,6 @@ class IRC(threading.Thread):
 
 	def get_channel_users(self, channel):
 		self.sock.send(bytes(u"NAMES %s \n" % channel))
-
-	def get_all_users(self):
-		self.sock.send(bytes(u"NAMES \n"))
 
 	def connect_and_join(self):
 		# TODO: connect to multiple servers
@@ -101,6 +104,9 @@ class IRC(threading.Thread):
 		split_array = message.split("\n")
 		return split_array
 
+	def create_db(self):
+		self.db = DB()
+
 	def load_channels(self):
 		self.channels = []
 		rows = self.db.get_irc_channels()
@@ -116,7 +122,7 @@ class IRC(threading.Thread):
 
 	def run(self):
 		#TODO: detect disconnects (notify users?) and reconnect
-		self.db = DB()
+		self.create_db()
 		self.create_socket()
 		self.load_channels()
 		self.connect_and_join()
@@ -139,9 +145,16 @@ class IRC(threading.Thread):
 			if message != "":
 				self.parse(message)
 
+			if self.reload_config:
+				self.db.close()
+				self.create_db()
+				self.set_nickname(self.nickname)
+				self.reload_config = False
+
 		self.db.close()
 		self.sock.send(bytes(u"QUIT \n"))
 		self.sock.close()
+		print("disconnected from IRC")
 
 	def parse(self, received_message):
 		is_priv_message = False
