@@ -30,29 +30,44 @@ class IRC(threading.Thread):
 			self.sock.connect((self.server, 6667))
 			# TODO: detect if name is taken
 			user_string = u"USER %s %s %s %s \n" % (self.nickname, self.nickname, self.nickname, self.nickname)
-			self.sock.send(user_string.encode("utf-8"))
+			self.socket_send(user_string)
 			self.set_nickname(self.nickname)
 
 			if self.core.config["use_freenode_nickserv"]:
 				identify_string = "PRIVMSG NickServ :IDENTIFY %s %s \n" % (self.nickname, self.core.config["freenode_nickserv_password"])
-				self.sock.send(identify_string.encode("utf-8"))
+				self.socket_send(identify_string)
 
 		except socket.timeout:
 			print("ERROR: IRC connection timed out")
 		except socket.error, error:
 			print("ERROR: IRC socket error: %s" % error)
 
+	def socket_send(self, string):
+		try:
+			self.sock.send(string.encode("utf-8"))
+		except socket.timeout:
+			print("ERROR: IRC connection timed out. Reconnecting...")
+			self.sock.close()
+			self.create_socket()
+			sleep(1)
+			self.connect_and_join()
+		except socket.error, error:
+			print("ERROR: IRC socket error: %s" % error)
+		except:
+			print("ERROR: IRC socket error")
+
+
 	def set_nickname(self, nickname):
 		self.nickname = nickname
 		nick_string = u"NICK %s \n" % self.nickname
-		self.sock.send(nick_string.encode("utf-8"))
+		self.socket_send(nick_string)
 
 	def join_channel(self, channel):
 		# TODO: notify when kicked or banned from channel
-		self.sock.send(bytes(u"JOIN %s \n" % channel))
+		self.socket_send(u"JOIN %s \n" % channel)
 
 	def get_channel_users(self, channel):
-		self.sock.send(bytes(u"NAMES %s \n" % channel))
+		self.socket_send(u"NAMES %s \n" % channel)
 
 	def connect_and_join(self):
 		# TODO: connect to multiple servers
@@ -68,7 +83,7 @@ class IRC(threading.Thread):
 			self.join_channel(channel["irc"])
 
 	def ping_respond(self):
-		self.sock.send(bytes(u"PONG \n"))
+		self.socket_send(u"PONG \n")
 
 	def send_message(self, target, message):
 		# target can be channel name or username (then it's a private message)
@@ -78,7 +93,7 @@ class IRC(threading.Thread):
 
 		for msg_part in messages:
 			text = u"PRIVMSG %s :%s\n" % (target, msg_part)
-			self.sock.send(text.encode('utf-8'))
+			self.socket_send(text)
 
 	def split_message(self, command, original_message):
 		converted_messages = []
@@ -152,7 +167,7 @@ class IRC(threading.Thread):
 				self.reload_config = False
 
 		self.db.close()
-		self.sock.send(bytes(u"QUIT \n"))
+		self.socket_send(u"QUIT \n")
 		self.sock.close()
 		print("disconnected from IRC")
 
