@@ -97,7 +97,7 @@ class DB():
 
 	def get_log(self, group_name):
 		group_name = group_name.decode("utf-8")
-		return self.cursor.execute("SELECT message FROM logs WHERE channel_id = ? LIMIT 500", (group_name,))
+		return self.cursor.execute("SELECT message FROM (SELECT * FROM logs WHERE channel_id = ? ORDER BY date DESC LIMIT 500) ORDER BY date ASC;", (group_name,))
 
 	def close(self):
 		self.db.close()
